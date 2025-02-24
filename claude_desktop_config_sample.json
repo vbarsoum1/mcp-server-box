@@ -1,0 +1,13 @@
+{
+    "mcpServers": {
+        "mcp-server-box": {
+            "command": "uv",
+            "args": [
+                "--directory",
+                "/Users/rbarbosa/Documents/code/python/box/mcp-server-box",
+                "run",
+                "src/mcp_server_box.py"
+            ]
+        }
+    }
+}
