@@ -97,7 +97,7 @@ def _do_request(box_client: BoxClient, url: str):
     try:
         access_token = box_client.auth.retrieve_token().access_token
     except BoxSDKError as e:
-        raise
+        raise e
 
     resp = requests.get(url, headers={"Authorization": f"Bearer {access_token}"})
     resp.raise_for_status()
