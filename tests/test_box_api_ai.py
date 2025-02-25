@@ -1,5 +1,5 @@
 from box_sdk_gen import BoxClient
-from src.box_api import box_file_ai_ask
+from src.lib.box_api import box_file_ai_ask
 
 
 def test_box_api_ai_ask(box_client: BoxClient):

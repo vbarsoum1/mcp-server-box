@@ -5,15 +5,13 @@ import logging
 import dotenv
 import os
 from dataclasses import dataclass
-from typing import Any, Iterable, List, Mapping, MutableMapping, Optional, Tuple, Union
+from typing import Iterable, List
 
 import requests
 from box_sdk_gen import (
-    AiAsk,
     AiExtractResponse,
     AiItemBase,
     AiItemBaseTypeField,
-    AiResponseFull,
     BoxCCGAuth,
     BoxClient,
     BoxSDKError,
@@ -22,8 +20,6 @@ from box_sdk_gen import (
     CreateAiExtractStructuredFields,
     CreateAiExtractStructuredFieldsOptionsField,
     File,
-    SearchResults,
-    SearchResultsWithSharedLinks,
     SearchForContentContentTypes,
     SearchForContentType,
 )

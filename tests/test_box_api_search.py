@@ -1,6 +1,6 @@
 from typing import List
 from box_sdk_gen import BoxClient, File
-from src.box_api import box_search
+from src.lib.box_api import box_search
 
 
 def test_box_api_search_basic(box_client: BoxClient):

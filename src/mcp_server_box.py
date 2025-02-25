@@ -1,4 +1,5 @@
-from box_api import (
+from typing import Any
+from lib.box_api import (
     get_box_ccg_client,
     box_search,
     box_file_text_extract,
@@ -46,7 +47,7 @@ async def box_search_tool(query: str) -> str:
 
 
 @mcp.tool()
-async def box_read_tool(file_id: any) -> str:
+async def box_read_tool(file_id: Any) -> str:
     """
     Read the text content of a file in Box.
 
@@ -71,7 +72,7 @@ async def box_read_tool(file_id: any) -> str:
 
 
 @mcp.tool()
-async def box_ask_ai_tool(file_id: any, prompt: str) -> str:
+async def box_ask_ai_tool(file_id: Any, prompt: str) -> str:
     """
     Ask box ai about a file in Box.
 

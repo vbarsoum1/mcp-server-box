@@ -1,6 +1,6 @@
 from typing import List
 from box_sdk_gen import BoxClient, File
-from src.box_api import box_file_text_extract
+from src.lib.box_api import box_file_text_extract
 
 
 def test_box_api_read_basic(box_client: BoxClient):
