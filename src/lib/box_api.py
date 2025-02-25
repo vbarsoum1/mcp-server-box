@@ -5,7 +5,7 @@ import logging
 import dotenv
 import os
 from dataclasses import dataclass
-from typing import Iterable, List
+from typing import Iterable, List, Union
 
 import requests
 from box_sdk_gen import (
@@ -21,6 +21,7 @@ from box_sdk_gen import (
     CreateAiExtractStructuredFieldsOptionsField,
     File,
     Folder,
+    FolderMini,
     SearchForContentContentTypes,
     SearchForContentType,
 )
@@ -353,3 +354,19 @@ def box_locate_folder_by_name(
         fields=fields,
     )
     return search_results.entries
+
+
+def box_folder_list_content(
+    client: BoxClient, folder_id: str, is_recursive: bool = False
+) -> List[Union[File, Folder]]:
+    # fields = "id,name,type"
+    result: List[Union[File, FolderMini]] = []
+
+    for item in client.folders.get_folder_items(folder_id).entries:
+        if item.type == "web_link":
+            continue
+        if item.type == "folder" and is_recursive:
+            result.extend(box_folder_list_content(client, item.id, is_recursive))
+        result.append(item)
+
+    return result

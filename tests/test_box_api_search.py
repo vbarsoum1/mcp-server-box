@@ -1,6 +1,10 @@
 from typing import List
 from box_sdk_gen import BoxClient, File
-from src.lib.box_api import box_search, box_locate_folder_by_name
+from src.lib.box_api import (
+    box_search,
+    box_locate_folder_by_name,
+    box_folder_list_content,
+)
 
 
 def test_box_api_search_basic(box_client: BoxClient):
@@ -21,3 +25,19 @@ def test_box_api_locate_folder_by_name(box_client: BoxClient):
     assert len(folders) > 0
     assert all(folder.type == "folder" for folder in folders)
     assert all("Airbyte-CI" in folder.name for folder in folders)
+
+
+def test_box_api_list_content_folders(box_client: BoxClient):
+    # This folder only has folders
+    items = box_folder_list_content(box_client, "298939523710")
+
+    assert len(items) > 0
+    assert all(item.type in ["file", "folder"] for item in items)
+
+
+def test_box_api_list_conten_filest(box_client: BoxClient):
+    # This filder only has files
+    items = box_folder_list_content(box_client, "298939487242")
+
+    assert len(items) > 0
+    assert all(item.type in ["file", "folder"] for item in items)

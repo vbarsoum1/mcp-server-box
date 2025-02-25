@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, List, Union
 from lib.box_api import (
     get_box_ccg_client,
     box_search,
@@ -6,10 +6,11 @@ from lib.box_api import (
     box_file_ai_ask,
     box_locate_folder_by_name,
     box_file_ai_extract,
+    box_folder_list_content,
 )
 from mcp.server.fastmcp import FastMCP
 import logging
-from box_sdk_gen import SearchForContentContentTypes
+from box_sdk_gen import SearchForContentContentTypes, File, Folder
 import json
 
 # Initialize FastMCP server
@@ -164,6 +165,43 @@ async def box_ai_extract_data(file_id: Any, fields: str) -> str:
 
     response = box_file_ai_extract(box_client, file_id, fields)
 
+    return json.dumps(response)
+
+
+@mcp.tool()
+async def box_list_folder_content_by_folder_id(folder_id: Any, is_recursive) -> str:
+    """
+    List the content of a folder in Box by its ID.
+
+    Args:
+        folder_id (str): The ID of the folder to list the content of.
+        is_recursive (bool): Whether to list the content recursively.
+
+    return:
+        str: The content of the folder in a json string format, including the "id", "name", "type", and "description".
+    """
+    # Get the Box client
+    box_client = get_box_ccg_client()
+
+    # check if file id isn't a string and convert to a string
+    if not isinstance(folder_id, str):
+        folder_id = str(folder_id)
+
+    response: List[Union[File, Folder]] = box_folder_list_content(
+        box_client, folder_id, is_recursive
+    )
+
+    # Convert the response to a json string
+
+    response = [
+        {
+            "id": item.id,
+            "name": item.name,
+            "type": item.type,
+            "description": item.description if hasattr(item, "description") else None,
+        }
+        for item in response
+    ]
     return json.dumps(response)
 
 
