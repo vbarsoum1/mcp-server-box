@@ -1,4 +1,4 @@
-from src.mcp_server_box import box_search_tool, box_read_tool
+from src.mcp_server_box import box_search_tool, box_read_tool, box_ask_ai_tool
 import pytest
 
 
@@ -12,6 +12,16 @@ async def test_mcp_server_search():
 async def test_mcp_server_read():
     # HAB-1-01.docx = 1728677291168. This file must exists
     resp = await box_read_tool("1728677291168")
+
+    assert resp is not None
+    assert len(resp) > 0
+    assert "HAB-1-01" in resp
+
+
+@pytest.mark.asyncio
+async def test_mcp_server_ai_ask():
+    # HAB-1-01.docx = 1728677291168. This file must exists
+    resp = await box_ask_ai_tool("1728677291168", "what are the key point of this file")
 
     assert resp is not None
     assert len(resp) > 0
