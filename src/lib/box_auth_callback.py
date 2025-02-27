@@ -81,8 +81,8 @@ class CallbackServer(BaseHTTPRequestHandler):
                 </head>
                 <body>
                     <div class="container">
-                        <h1>Box Authentication Error</h1>
-                        <p>An error occurred during authentication. Please try again.</p>
+                        <h1>Box authorization error</h1>
+                        <p>An error occurred during authorization.</p>
                         <p>Error: {error}</p>
                         <p>Error Description: {error_description}</p>
                     </div>
@@ -121,8 +121,8 @@ class CallbackServer(BaseHTTPRequestHandler):
                 </head>
                 <body>
                     <div class="container">
-                        <h1>Box Authentication Successful!</h1>
-                        <p>Authentication completed successfully.</p> 
+                        <h1>Success!</h1>
+                        <p>Authorization completed successfully.</p> 
                         <p>You can now close this window and return to the application.</p>
                     </div>
                 </body>
