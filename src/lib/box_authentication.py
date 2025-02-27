@@ -58,16 +58,7 @@ def get_ccg_client() -> BoxClient:
 
 def get_oauth_client() -> BoxClient:
     conf = get_auth_config()
-
     auth = BoxOAuth(conf)
-
-    stored_credentials: Optional[AccessToken] = auth.token_storage.get()
-
-    # do we need to authorize the app?
-    if not stored_credentials.refresh_token:
-        raise Exception("Box application not authorized yet.")
-
-    # Assume the refresh token is still valid
     return add_extra_header_to_box_client(BoxClient(auth))
 
 
