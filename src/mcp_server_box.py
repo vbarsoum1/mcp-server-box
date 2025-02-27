@@ -1,4 +1,5 @@
-from typing import Any, List, Union
+# from dataclasses import dataclass
+from typing import Any, List, Union  # , Optional, cast
 from lib.box_api import (
     box_search,
     box_file_text_extract,
@@ -8,11 +9,11 @@ from lib.box_api import (
     box_folder_list_content,
 )
 from lib.box_authentication import get_oauth_client, authorize_app
-from mcp.server.fastmcp import FastMCP, Context
+from mcp.server.fastmcp import FastMCP  # , Context
 import logging
-from box_sdk_gen import SearchForContentContentTypes, File, Folder, BoxClient
+from box_sdk_gen import SearchForContentContentTypes, File, Folder
 import json
-from contextlib import asynccontextmanager
+# from contextlib import asynccontextmanager
 # from dataclasses import dataclass
 
 
@@ -29,25 +30,42 @@ logger.info("Box MCP Server started")
 #     # auth: Optional[BoxOAuth] = None
 
 
-@asynccontextmanager
-async def box_lifespan(server: FastMCP):
-    """Manage Box client lifecycle with OAuth handling"""
-    try:
-        client = get_oauth_client()
+# @asynccontextmanager
+# async def box_lifespan(server: FastMCP):
+#     """Manage Box client lifecycle with OAuth handling"""
+#     try:
+#         client = get_oauth_client()
 
-        # Test authentication (will auto-refresh if needed)
-        try:
-            current_user = client.users.get_user_me()
-            logger.info(f"Authenticated as: {current_user.name}")
-        except Exception as e:
-            logger.warning(f"Authentication failed: {str(e)}")
-            logger.info("You'll need to authenticate using the get_auth_url tool")
+#         # Test authentication (will auto-refresh if needed)
+#         try:
+#             current_user = client.users.get_user_me()
+#             logger.info(f"Authenticated as: {current_user.name}")
+#         except Exception as e:
+#             logger.warning(f"Authentication failed: {str(e)}")
+#             logger.info("You'll need to authenticate using the get_auth_url tool")
 
-        yield client
+#         yield BoxContext(client=client)
 
-    finally:
-        # Cleanup (if needed)
-        pass
+#     finally:
+#         # Cleanup (if needed)
+#         pass
+
+
+@mcp.tool()
+async def box_who_am_i() -> str:
+    """
+    Get the current user's information.
+    This is also useful to check the connection status.
+
+    return:
+        str: The current user's information.
+    """
+    # Get the Box client
+    box_client = get_oauth_client()
+    # Get the current user's information
+    current_user = box_client.users.get_user_me()
+
+    return f"Authenticated as: {current_user.name}"
 
 
 @mcp.tool()
@@ -69,7 +87,6 @@ async def box_authorize_app_tool() -> str:
 
 @mcp.tool()
 async def box_search_tool(
-    ctx: Context,
     query: str,
     file_extensions: List[str] | None = None,
     where_to_look_for_query: List[str] | None = None,
@@ -92,7 +109,7 @@ async def box_search_tool(
         str: The search results.
     """
     # Get the Box client
-    box_client: BoxClient = ctx.request_context.lifespan_context
+    box_client = get_oauth_client()
 
     # Convert the where to look for query to content types
     content_types: List[SearchForContentContentTypes] = []
@@ -116,7 +133,7 @@ async def box_search_tool(
 
 
 @mcp.tool()
-async def box_read_tool(ctx: Context, file_id: Any) -> str:
+async def box_read_tool(file_id: Any) -> str:
     """
     Read the text content of a file in Box.
 
@@ -133,7 +150,7 @@ async def box_read_tool(ctx: Context, file_id: Any) -> str:
         file_id = str(file_id)
 
     # Get the Box client
-    box_client: BoxClient = ctx.request_context.lifespan_context
+    box_client = get_oauth_client()
 
     response = box_file_text_extract(box_client, file_id)
 
@@ -141,7 +158,7 @@ async def box_read_tool(ctx: Context, file_id: Any) -> str:
 
 
 @mcp.tool()
-async def box_ask_ai_tool(ctx: Context, file_id: Any, prompt: str) -> str:
+async def box_ask_ai_tool(file_id: Any, prompt: str) -> str:
     """
     Ask box ai about a file in Box.
 
@@ -159,7 +176,7 @@ async def box_ask_ai_tool(ctx: Context, file_id: Any, prompt: str) -> str:
         file_id = str(file_id)
 
     # Get the Box client
-    box_client: BoxClient = ctx.request_context.lifespan_context
+    box_client = get_oauth_client()
 
     response = box_file_ai_ask(box_client, file_id, prompt=prompt)
 
@@ -167,7 +184,7 @@ async def box_ask_ai_tool(ctx: Context, file_id: Any, prompt: str) -> str:
 
 
 @mcp.tool()
-async def box_search_folder_by_name(ctx: Context, folder_name: str) -> str:
+async def box_search_folder_by_name(folder_name: str) -> str:
     """
     Locate a folder in Box by its name.
 
@@ -178,7 +195,7 @@ async def box_search_folder_by_name(ctx: Context, folder_name: str) -> str:
     """
 
     # Get the Box client
-    box_client: BoxClient = ctx.request_context.lifespan_context
+    box_client = get_oauth_client()
 
     search_results = box_locate_folder_by_name(box_client, folder_name)
 
@@ -189,7 +206,7 @@ async def box_search_folder_by_name(ctx: Context, folder_name: str) -> str:
 
 
 @mcp.tool()
-async def box_ai_extract_data(ctx: Context, file_id: Any, fields: str) -> str:
+async def box_ai_extract_data(file_id: Any, fields: str) -> str:
     """ "
     Extract data from a file in Box using AI.
 
@@ -200,7 +217,7 @@ async def box_ai_extract_data(ctx: Context, file_id: Any, fields: str) -> str:
         str: The extracted data in a json string format.
     """
     # Get the Box client
-    box_client: BoxClient = ctx.request_context.lifespan_context
+    box_client = get_oauth_client()
 
     # check if file id isn't a string and convert to a string
     if not isinstance(file_id, str):
@@ -212,9 +229,7 @@ async def box_ai_extract_data(ctx: Context, file_id: Any, fields: str) -> str:
 
 
 @mcp.tool()
-async def box_list_folder_content_by_folder_id(
-    ctx: Context, folder_id: Any, is_recursive
-) -> str:
+async def box_list_folder_content_by_folder_id(folder_id: Any, is_recursive) -> str:
     """
     List the content of a folder in Box by its ID.
 
@@ -226,7 +241,7 @@ async def box_list_folder_content_by_folder_id(
         str: The content of the folder in a json string format, including the "id", "name", "type", and "description".
     """
     # Get the Box client
-    box_client: BoxClient = ctx.request_context.lifespan_context
+    box_client = get_oauth_client()
 
     # check if file id isn't a string and convert to a string
     if not isinstance(folder_id, str):
