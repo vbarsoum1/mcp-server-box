@@ -85,7 +85,7 @@ List folder contents.
 1. Clone the repository:
 
     ```sh
-    git clone https://github.com/yourusername/mcp-server-box.git
+    git clone https://github.com/box-community/mcp-server-box.git
     cd mcp-server-box
     ```
 
