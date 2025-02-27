@@ -20,26 +20,50 @@ The Model Context Protocol (MCP) is a framework designed to standardize the way 
     cd mcp-server-box
     ```
 
-2. Create a virtual environment and activate it:
+2. Install `uv` if not installed yet:
+
+    2.1 MacOS+Linux
+
+    ```sh MacOS+Linux
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    ```
+
+    2.2 Windows
+
+    ```powershell Windows
+    powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+    ```
+    
+3. Create and set up our project:
+
+    3.1 MacOS+Linux
 
     ```sh
-    python -m venv .venv
+    # Create virtual environment and activate it
+    uv venv
     source .venv/bin/activate
+
+    # Lock the dependencies
+    uv lock
     ```
 
-3. Install the dependencies:
+    3.1 Windows
 
     ```sh
-    pip install -r requirements.txt
+    # Create virtual environment and activate it
+    uv venv
+    .venv\Scripts\activate
+
+    # Lock the dependencies
+    uv lock
     ```
+
 
 4. Create a `.env` file in the root directory and add your Box API credentials:
 
     ```.env
     BOX_CLIENT_ID=your_client_id
     BOX_CLIENT_SECRET=your_client_secret
-    BOX_SUBJECT_TYPE=your_subject_type
-    BOX_SUBJECT_ID=your_subject_id
     ```
 
 ## Usage
