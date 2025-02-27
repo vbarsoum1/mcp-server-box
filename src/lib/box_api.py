@@ -24,6 +24,7 @@ from box_sdk_gen import (
     FolderMini,
     SearchForContentContentTypes,
     SearchForContentType,
+    ByteStream,
 )
 
 
@@ -370,3 +371,9 @@ def box_folder_list_content(
         result.append(item)
 
     return result
+
+
+def box_file_download(client: BoxClient, file_id: str) -> ByteStream:
+    # file = client.files.get_file_by_id(file_id)
+
+    return client.downloads.download_file(file_id=file_id)

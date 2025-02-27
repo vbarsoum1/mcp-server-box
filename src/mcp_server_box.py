@@ -16,12 +16,7 @@ import json
 # Initialize FastMCP server
 mcp = FastMCP("Box Server")
 
-# Set the logging level to INFO and sve it on a file
-logging.basicConfig(
-    level=logging.INFO,
-    filename="/Users/rbarbosa/Documents/code/python/box/mcp-server-box/mcp_server.log",
-)
-
+logging.getLogger(__name__)
 logging.info("Box Server started")
 
 
