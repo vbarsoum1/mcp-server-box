@@ -25,6 +25,13 @@ from box_sdk_gen import (
     SearchForContentContentTypes,
     SearchForContentType,
     ByteStream,
+    AiSingleAgentResponseFull,
+    AiAgentAsk,
+    AiAgentAskTypeField,
+    AiAgentLongTextTool,
+    AiAgentBasicTextTool,
+    AiAgentExtract,
+    AiAgentExtractTypeField,
 )
 
 
@@ -110,16 +117,24 @@ def box_file_text_extract(client: BoxClient, file_id: str) -> str:
         return raw_content
 
 
-def box_file_ai_ask(client: BoxClient, file_id: str, prompt: str) -> str:
+def box_file_ai_ask(
+    client: BoxClient, file_id: str, prompt: str, ai_agent: AiAgentAsk = None
+) -> str:
     mode = CreateAiAskMode.SINGLE_ITEM_QA
     ai_item = AiItemBase(id=file_id, type=AiItemBaseTypeField.FILE)
-    response = client.ai.create_ai_ask(mode=mode, prompt=prompt, items=[ai_item])
+    response = client.ai.create_ai_ask(
+        mode=mode, prompt=prompt, items=[ai_item], ai_agent=ai_agent
+    )
     return response.answer
 
 
-def box_file_ai_extract(client: BoxClient, file_id: str, prompt: str) -> dict:
+def box_file_ai_extract(
+    client: BoxClient, file_id: str, prompt: str, ai_agent: AiAgentAsk = None
+) -> dict:
     ai_item = AiItemBase(id=file_id, type=AiItemBaseTypeField.FILE)
-    response = client.ai.create_ai_extract(prompt=prompt, items=[ai_item])
+    response = client.ai.create_ai_extract(
+        prompt=prompt, items=[ai_item], ai_agent=ai_agent
+    )
 
     # Return a dictionary from the json answer
     return json.loads(response.answer)
@@ -339,3 +354,37 @@ def box_file_download(client: BoxClient, file_id: str) -> ByteStream:
     # file = client.files.get_file_by_id(file_id)
 
     return client.downloads.download_file(file_id=file_id)
+
+
+def box_available_ai_agents(client: BoxClient) -> List[AiSingleAgentResponseFull]:
+    return client.ai_studio.get_ai_agents().entries
+
+
+def box_claude_ai_agent_ask() -> AiAgentAsk:
+    return AiAgentAsk(
+        type=AiAgentAskTypeField.AI_AGENT_ASK,
+        long_text=AiAgentLongTextTool(
+            model="aws__claude_3_7_sonnet",
+        ),
+        basic_text=AiAgentBasicTextTool(
+            model="aws__claude_3_7_sonnet",
+        ),
+        long_text_multi=AiAgentLongTextTool(
+            model="aws__claude_3_7_sonnet",
+        ),
+        basic_text_multi=AiAgentBasicTextTool(
+            model="aws__claude_3_7_sonnet",
+        ),
+    )
+
+
+def box_claude_ai_agent_extract() -> AiAgentExtract:
+    return AiAgentExtract(
+        type=AiAgentExtractTypeField.AI_AGENT_EXTRACT,
+        long_text=AiAgentLongTextTool(
+            model="aws__claude_3_7_sonnet",
+        ),
+        basic_text=AiAgentBasicTextTool(
+            model="aws__claude_3_7_sonnet",
+        ),
+    )

@@ -7,13 +7,21 @@ from lib.box_api import (
     box_locate_folder_by_name,
     box_file_ai_extract,
     box_folder_list_content,
+    box_claude_ai_agent_ask,
+    box_claude_ai_agent_extract,
 )
 from lib.box_authentication import get_oauth_client, authorize_app
 from mcp.server.fastmcp import FastMCP, Context
 
 # from mcp.server import Server
 import logging
-from box_sdk_gen import SearchForContentContentTypes, File, Folder, BoxClient
+from box_sdk_gen import (
+    SearchForContentContentTypes,
+    File,
+    Folder,
+    BoxClient,
+    AiSingleAgentResponseFull,
+)
 import json
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -56,7 +64,7 @@ async def box_who_am_i(ctx: Context) -> str:
         str: The current user's information.
     """
     # Get the Box client
-    box_client: BoxContext = cast(
+    box_client: BoxClient = cast(
         BoxContext, ctx.request_context.lifespan_context
     ).client
 
@@ -108,7 +116,7 @@ async def box_search_tool(
         str: The search results.
     """
     # Get the Box client
-    box_client: BoxContext = cast(
+    box_client: BoxClient = cast(
         BoxContext, ctx.request_context.lifespan_context
     ).client
 
@@ -151,7 +159,7 @@ async def box_read_tool(ctx: Context, file_id: Any) -> str:
         file_id = str(file_id)
 
     # Get the Box client
-    box_client: BoxContext = cast(
+    box_client: BoxClient = cast(
         BoxContext, ctx.request_context.lifespan_context
     ).client
 
@@ -179,11 +187,11 @@ async def box_ask_ai_tool(ctx: Context, file_id: Any, prompt: str) -> str:
         file_id = str(file_id)
 
     # Get the Box client
-    box_client: BoxContext = cast(
+    box_client: BoxClient = cast(
         BoxContext, ctx.request_context.lifespan_context
     ).client
-
-    response = box_file_ai_ask(box_client, file_id, prompt=prompt)
+    ai_agent = box_claude_ai_agent_ask()
+    response = box_file_ai_ask(box_client, file_id, prompt=prompt, ai_agent=ai_agent)
 
     return response
 
@@ -200,7 +208,7 @@ async def box_search_folder_by_name(ctx: Context, folder_name: str) -> str:
     """
 
     # Get the Box client
-    box_client: BoxContext = cast(
+    box_client: BoxClient = cast(
         BoxContext, ctx.request_context.lifespan_context
     ).client
 
@@ -224,7 +232,7 @@ async def box_ai_extract_data(ctx: Context, file_id: Any, fields: str) -> str:
         str: The extracted data in a json string format.
     """
     # Get the Box client
-    box_client: BoxContext = cast(
+    box_client: BoxClient = cast(
         BoxContext, ctx.request_context.lifespan_context
     ).client
 
@@ -232,7 +240,8 @@ async def box_ai_extract_data(ctx: Context, file_id: Any, fields: str) -> str:
     if not isinstance(file_id, str):
         file_id = str(file_id)
 
-    response = box_file_ai_extract(box_client, file_id, fields)
+    ai_agent = box_claude_ai_agent_extract()
+    response = box_file_ai_extract(box_client, file_id, fields, ai_agent=ai_agent)
 
     return json.dumps(response)
 
@@ -252,7 +261,7 @@ async def box_list_folder_content_by_folder_id(
         str: The content of the folder in a json string format, including the "id", "name", "type", and "description".
     """
     # Get the Box client
-    box_client: BoxContext = cast(
+    box_client: BoxClient = cast(
         BoxContext, ctx.request_context.lifespan_context
     ).client
 

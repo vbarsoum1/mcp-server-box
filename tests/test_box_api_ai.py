@@ -1,5 +1,10 @@
 from box_sdk_gen import BoxClient
-from src.lib.box_api import box_file_ai_ask, box_file_ai_extract
+from src.lib.box_api import (
+    box_file_ai_ask,
+    box_file_ai_extract,
+    box_available_ai_agents,
+)
+import pytest
 
 
 def test_box_api_ai_ask(box_client: BoxClient):
@@ -22,3 +27,9 @@ def test_box_api_ai_extract(box_client: BoxClient):
     assert len(resp) > 0
     assert resp.get("contract date") is not None
     assert resp.get("start date") is not None
+
+
+@pytest.mark.skip(reason="This test is not implemented")
+def test_box_api_ai_agents(box_client: BoxClient):
+    resp = box_available_ai_agents(box_client)
+    assert resp is not None
