@@ -37,44 +37,6 @@ class BoxFileExtended:
     text_representation: str
 
 
-def get_box_ccg_client() -> BoxClient:
-    dotenv.load_dotenv()
-    client_id = os.getenv("BOX_CLIENT_ID")
-    client_secret = os.getenv("BOX_CLIENT_SECRET")
-    box_subject_type = os.getenv("BOX_SUBJECT_TYPE")
-    box_subject_id = os.getenv("BOX_SUBJECT_ID")
-
-    if box_subject_type == "enterprise":
-        enterprise_id = box_subject_id
-        user_id = None
-    else:
-        enterprise_id = None
-        user_id = box_subject_id
-    ccg_config = CCGConfig(
-        client_id=client_id,
-        client_secret=client_secret,
-        enterprise_id=enterprise_id,
-        user_id=user_id,
-    )
-    ccg_auth = BoxCCGAuth(ccg_config)
-    return add_extra_header_to_box_client(BoxClient(ccg_auth))
-
-
-def add_extra_header_to_box_client(box_client: BoxClient) -> BoxClient:
-    """
-    Add extra headers to the Box client.
-
-    Args:
-        box_client (BoxClient): A Box client object.
-        header (Dict[str, str]): A dictionary of extra headers to add to the Box client.
-
-    Returns:
-        BoxClient: A Box client object with the extra headers added.
-    """
-    header = {"x-box-ai-library": "mcp-server-box"}
-    return box_client.with_extra_headers(extra_headers=header)
-
-
 def _do_request(box_client: BoxClient, url: str):
     """
     Performs a GET request to a Box API endpoint using the provided Box client.

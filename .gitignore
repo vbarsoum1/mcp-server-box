@@ -10,7 +10,8 @@ wheels/
 .venv
 
 # Secrets
-.env
+.env*
+.auth.*
 
 # Garbage
 .DS_Store
