@@ -520,11 +520,5 @@ async def box_download_file_tool(ctx: Context, file_id: Any, save_file: bool = F
 
 
 if __name__ == "__main__":
-    # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Box MCP Server')
-    parser.add_argument('--host', default='localhost', help='Host to bind to')
-    parser.add_argument('--port', type=int, default=3000, help='Port to bind to')
-    args = parser.parse_args()
-    
     # Initialize and run the server
-    mcp.run(transport="http", host=args.host, port=args.port)
+    mcp.run(transport="stdio")
