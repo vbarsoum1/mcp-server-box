@@ -9,6 +9,13 @@ from lib.box_api import (
     box_folder_list_content,
     box_claude_ai_agent_ask,
     box_claude_ai_agent_extract,
+    box_create_folder,
+    box_update_folder,
+    box_delete_folder,
+    box_upload_file,
+    box_file_download,
+    DocumentFiles,
+    ImageFiles,
 )
 from lib.box_authentication import get_oauth_client, authorize_app
 from mcp.server.fastmcp import FastMCP, Context
@@ -21,10 +28,19 @@ from box_sdk_gen import (
     Folder,
     BoxClient,
     AiSingleAgentResponseFull,
+    UploadFileAttributes,
+    UploadFileAttributesParentField,
+    CreateFolderParent,
+    UpdateFolderByIdParent,
 )
 import json
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+import tempfile
+import os
+import base64
+import mimetypes
+import argparse
 
 
 logger = logging.getLogger(__name__)
@@ -287,6 +303,228 @@ async def box_list_folder_content_by_folder_id(
     return json.dumps(response)
 
 
+@mcp.tool()
+async def box_manage_folder_tool(
+    ctx: Context, 
+    action: str,  # "create", "delete", or "update"
+    folder_id: Any = None,  # Required for delete and update, not for create
+    name: str = None,  # Required for create, optional for update
+    parent_id: Any = None,  # Required for create, optional for update
+    description: str = None,  # Optional for update
+    recursive: bool = False,  # Optional for delete
+) -> str:
+    """
+    Manage Box folders - create, delete, or update.
+    
+    Args:
+        action (str): The action to perform: "create", "delete", or "update"
+        folder_id (Any): The ID of the folder (required for delete and update)
+        name (str): The name for the folder (required for create, optional for update)
+        parent_id (Any): The ID of the parent folder (required for create, optional for update)
+                       Root folder is "0" or 0.
+        description (str): Description for the folder (optional for update)
+        recursive (bool): Whether to delete recursively (optional for delete)
+        
+    return:
+        str: Result of the operation
+    """
+    # Get the Box client
+    box_client: BoxClient = cast(
+        BoxContext, ctx.request_context.lifespan_context
+    ).client
+    
+    # Validate and normalize inputs
+    if action.lower() not in ["create", "delete", "update"]:
+        return f"Invalid action: {action}. Must be one of: create, delete, update."
+    
+    action = action.lower()
+    
+    # Convert IDs to strings if needed
+    if folder_id is not None and not isinstance(folder_id, str):
+        folder_id = str(folder_id)
+        
+    if parent_id is not None and not isinstance(parent_id, str):
+        parent_id = str(parent_id)
+    
+    # Handle create action
+    if action == "create":
+        if not name:
+            return "Error: name is required for create action"
+        
+        try:
+            # Default to root folder ("0") if parent_id is None
+            parent_id_str = parent_id if parent_id is not None else "0"
+            
+            new_folder = box_create_folder(
+                client=box_client,
+                name=name,
+                parent_id=parent_id_str
+            )
+            return f"Folder created successfully. Folder ID: {new_folder.id}, Name: {new_folder.name}"
+        except Exception as e:
+            return f"Error creating folder: {str(e)}"
+    
+    # Handle delete action
+    elif action == "delete":
+        if not folder_id:
+            return "Error: folder_id is required for delete action"
+            
+        try:
+            box_delete_folder(
+                client=box_client,
+                folder_id=folder_id,
+                recursive=recursive
+            )
+            return f"Folder with ID {folder_id} deleted successfully"
+        except Exception as e:
+            return f"Error deleting folder: {str(e)}"
+    
+    # Handle update action
+    elif action == "update":
+        if not folder_id:
+            return "Error: folder_id is required for update action"
+            
+        try:
+            updated_folder = box_update_folder(
+                client=box_client,
+                folder_id=folder_id,
+                name=name,
+                description=description,
+                parent_id=parent_id
+            )
+            return f"Folder updated successfully. Folder ID: {updated_folder.id}, Name: {updated_folder.name}"
+        except Exception as e:
+            return f"Error updating folder: {str(e)}"
+
+
+@mcp.tool()
+async def box_upload_file_tool(ctx: Context, content: str, file_name: str, folder_id: Any | None = None) -> str:
+    """
+    Upload content as a file to Box.
+
+    Args:
+        content (str): The content to upload as a file.
+        file_name (str): The name to give the file in Box.
+        folder_id (Any, optional): The ID of the folder to upload to. If not provided, uploads to root.
+
+    return:
+        str: The uploaded file's information including ID and name.
+    """
+    # Get the Box client
+    box_client: BoxClient = cast(
+        BoxContext, ctx.request_context.lifespan_context
+    ).client
+
+    try:
+        # Convert folder_id to string if it's not None
+        folder_id_str = str(folder_id) if folder_id is not None else None
+        
+        # Use the box_api function for uploading
+        result = box_upload_file(
+            client=box_client,
+            content=content,
+            file_name=file_name,
+            folder_id=folder_id_str
+        )
+        
+        return f"File uploaded successfully. File ID: {result['id']}, Name: {result['name']}"
+    except Exception as e:
+        return f"Error uploading file: {str(e)}"
+
+
+@mcp.tool()
+async def box_download_file_tool(ctx: Context, file_id: Any, save_file: bool = False, save_path: str | None = None) -> str:
+    """
+    Download a file from Box and return its content as a string.
+    Supports text files (returns content directly) and images (returns base64-encoded).
+    Other file types will return an error message.
+    Optionally saves the file locally.
+
+    Args:
+        file_id (Any): The ID of the file to download.
+        save_file (bool, optional): Whether to save the file locally. Defaults to False.
+        save_path (str, optional): Path where to save the file. If not provided but save_file is True,
+                                  uses a temporary directory. Defaults to None.
+
+    return:
+        str: For text files: content as string.
+             For images: base64-encoded string with metadata.
+             For unsupported files: error message.
+             If save_file is True, includes the path where the file was saved.
+    """
+    # Get the Box client
+    box_client: BoxClient = cast(
+        BoxContext, ctx.request_context.lifespan_context
+    ).client
+
+    # Convert file_id to string if it's not already
+    if not isinstance(file_id, str):
+        file_id = str(file_id)
+
+    try:
+        # Use the box_api function for downloading
+        saved_path, file_content, mime_type = box_file_download(
+            client=box_client,
+            file_id=file_id,
+            save_file=save_file,
+            save_path=save_path
+        )
+        
+        # Get file info to include name in response
+        file_info = box_client.files.get_file_by_id(file_id)
+        file_name = file_info.name
+        file_extension = file_name.split('.')[-1].lower() if '.' in file_name else ''
+        
+        # Prepare response based on content type
+        response = ""
+        if saved_path:
+            response += f"File saved to: {saved_path}\n\n"
+        
+        # Check if file is a document (text-based file)
+        is_document = (
+            mime_type and mime_type.startswith('text/') or 
+            file_extension in [e.value for e in DocumentFiles]
+        )
+        
+        # Check if file is an image
+        is_image = (
+            mime_type and mime_type.startswith('image/') or 
+            file_extension in [e.value for e in ImageFiles]
+        )
+        
+        if is_document:
+            # Text file - return content directly
+            try:
+                content_text = file_content.decode('utf-8')
+                response += f"File downloaded successfully: {file_name}\n\n{content_text}"
+            except UnicodeDecodeError:
+                # Handle case where file can't be decoded as UTF-8 despite being a "document"
+                response += f"File {file_name} is a document but couldn't be decoded as text. It may be in a binary format."
+        
+        elif is_image:
+            # Image file - return base64 encoded
+            base64_data = base64.b64encode(file_content).decode('utf-8')
+            response += f"Image downloaded successfully: {file_name}\nMIME type: {mime_type}\nBase64 encoded data:\n{base64_data}"
+        
+        else:
+            # Unsupported file type for content display (but still saved if requested)
+            if not saved_path:
+                response += f"File {file_name} has unsupported type ({mime_type or 'unknown'}). Only text and image files are supported for content display."
+            else:
+                response += f"File {file_name} has unsupported type ({mime_type or 'unknown'}) for content display, but was saved successfully."
+        
+        return response
+    
+    except Exception as e:
+        return f"Error downloading file: {str(e)}"
+
+
 if __name__ == "__main__":
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Box MCP Server')
+    parser.add_argument('--host', default='localhost', help='Host to bind to')
+    parser.add_argument('--port', type=int, default=3000, help='Port to bind to')
+    args = parser.parse_args()
+    
     # Initialize and run the server
-    mcp.run(transport="stdio")
+    mcp.run(transport="http", host=args.host, port=args.port)
