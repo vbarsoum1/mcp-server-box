@@ -7,7 +7,7 @@ import logging
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any, AsyncIterator, List, Union, cast  # , Optional, cast
-from dotenv import load_dotenv
+
 
 from box_ai_agents_toolkit import (
     BoxClient,
@@ -21,6 +21,7 @@ from box_ai_agents_toolkit import (
     box_create_folder,
     box_delete_folder,
     box_file_ai_ask,
+    box_multi_file_ai_ask,
     box_file_ai_extract,
     box_file_download,
     box_file_text_extract,
@@ -38,8 +39,6 @@ from mcp.server.fastmcp import Context, FastMCP
 
 logger = logging.getLogger(__name__)
 logger.info("Box MCP Server started")
-
-load_dotenv()
 
 
 @dataclass
@@ -94,6 +93,7 @@ async def box_authorize_app_tool() -> str:
     return:
         str: Message
     """
+
     logger.info("Authorizing Box application")
     result = authorize_app()
     if result:
@@ -208,6 +208,41 @@ async def box_ask_ai_tool(ctx: Context, file_id: Any, prompt: str) -> str:
 
 
 @mcp.tool()
+async def box_ask_ai_tool_multi_file(
+    ctx: Context, file_ids: List[str], prompt: str
+) -> str:
+    """
+    Use Box AI to analyze and respond to a prompt based on the content of multiple files.
+
+    This tool allows users to query Box AI with a specific prompt, leveraging the content
+    of multiple files stored in Box. The AI processes the files and generates a response
+    based on the provided prompt.
+
+    Args:
+        ctx (Context): The context object containing the request and lifespan context.
+        file_ids (List[str]): A list of file IDs to be analyzed by the AI.
+        prompt (str): The prompt or question to ask the AI.
+
+    Returns:
+        str: The AI-generated response based on the content of the specified files.
+
+    Raises:
+        Exception: If there is an issue with the Box client, AI agent, or file processing.
+    """
+
+    # Get the Box client
+    box_client: BoxClient = cast(
+        BoxContext, ctx.request_context.lifespan_context
+    ).client
+    ai_agent = box_claude_ai_agent_ask()
+    response = box_multi_file_ai_ask(
+        box_client, file_ids, prompt=prompt, ai_agent=ai_agent
+    )
+
+    return response
+
+
+@mcp.tool()
 async def box_search_folder_by_name(ctx: Context, folder_name: str) -> str:
     """
     Locate a folder in Box by its name.
@@ -234,7 +269,7 @@ async def box_search_folder_by_name(ctx: Context, folder_name: str) -> str:
 @mcp.tool()
 async def box_ai_extract_data(ctx: Context, file_id: Any, fields: str) -> str:
     """ "
-    Extract data from a file in Box using AI.
+    Extract data from a single file in Box using AI.
 
     Args:
         file_id (str): The ID of the file to read.

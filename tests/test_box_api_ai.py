@@ -2,6 +2,7 @@ from box_ai_agents_toolkit import (
     BoxClient,
     box_file_ai_ask,
     box_file_ai_extract,
+    box_multi_file_ai_extract,
 )
 
 
@@ -32,3 +33,25 @@ def test_box_api_ai_extract(box_client: BoxClient):
     assert answer.get("end date") is not None
     assert answer.get("lessee name") is not None
     assert answer.get("lessee email") is not None
+
+
+# def test_box_api_ai_extract_multi(box_client: BoxClient):
+#     file_ids = [
+#         "1728675448213",
+#         "1728675498613",
+#         "1728675455413",
+#         "1728675493813",
+#         "1728675501013",
+#         "1728675467413",
+#         "1728675481813",
+#         "1728675489013",
+#         "1728675477013",
+#         "1728675472213",
+#     ]
+#     resp: dict = box_multi_file_ai_extract(
+#         box_client,
+#         file_ids,
+#         "contract date, start date, end date, lessee name, lessee email, rent, property id",
+#     )
+
+#     assert resp is not None

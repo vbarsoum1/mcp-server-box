@@ -15,3 +15,5 @@ wheels/
 
 # Garbage
 .DS_Store
+
+.coverage
