@@ -1,9 +1,12 @@
 from typing import List
-from box_sdk_gen import BoxClient, File
-from src.lib.box_api import (
-    box_search,
-    box_locate_folder_by_name,
+
+
+from box_ai_agents_toolkit import (
+    BoxClient,
+    File,
     box_folder_list_content,
+    box_locate_folder_by_name,
+    box_search,
 )
 
 
