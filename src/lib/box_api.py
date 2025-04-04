@@ -4,8 +4,12 @@ import json
 import logging
 import dotenv
 import os
+import tempfile
+import base64
+import mimetypes
 from dataclasses import dataclass
-from typing import Iterable, List, Union
+from typing import Iterable, List, Union, Dict, Optional, Any, Tuple
+from enum import Enum
 
 import requests
 from box_sdk_gen import (
@@ -32,10 +36,133 @@ from box_sdk_gen import (
     AiAgentBasicTextTool,
     AiAgentExtract,
     AiAgentExtractTypeField,
+    CreateFolderParent,
+    UpdateFolderByIdParent,
+    FolderFull,
+    UploadFileAttributes,
+    UploadFileAttributesParentField,
 )
 
 
 logger = logging.getLogger(__name__)
+
+
+class DocumentFiles(Enum):
+    """DocumentFiles(Enum).
+
+    An enum containing all of the supported extensions for files
+    Box considers Documents. These files should have text
+    representations.
+    """
+
+    DOC = "doc"
+    DOCX = "docx"
+    GDOC = "gdoc"
+    GSHEET = "gsheet"
+    NUMBERS = "numbers"
+    ODS = "ods"
+    ODT = "odt"
+    PAGES = "pages"
+    PDF = "pdf"
+    RTF = "rtf"
+    WPD = "wpd"
+    XLS = "xls"
+    XLSM = "xlsm"
+    XLSX = "xlsx"
+    AS = "as"
+    AS3 = "as3"
+    ASM = "asm"
+    BAT = "bat"
+    C = "c"
+    CC = "cc"
+    CMAKE = "cmake"
+    CPP = "cpp"
+    CS = "cs"
+    CSS = "css"
+    CSV = "csv"
+    CXX = "cxx"
+    DIFF = "diff"
+    ERB = "erb"
+    GROOVY = "groovy"
+    H = "h"
+    HAML = "haml"
+    HH = "hh"
+    HTM = "htm"
+    HTML = "html"
+    JAVA = "java"
+    JS = "js"
+    JSON = "json"
+    LESS = "less"
+    LOG = "log"
+    M = "m"
+    MAKE = "make"
+    MD = "md"
+    ML = "ml"
+    MM = "mm"
+    MSG = "msg"
+    PHP = "php"
+    PL = "pl"
+    PROPERTIES = "properties"
+    PY = "py"
+    RB = "rb"
+    RST = "rst"
+    SASS = "sass"
+    SCALA = "scala"
+    SCM = "scm"
+    SCRIPT = "script"
+    SH = "sh"
+    SML = "sml"
+    SQL = "sql"
+    TXT = "txt"
+    VI = "vi"
+    VIM = "vim"
+    WEBDOC = "webdoc"
+    XHTML = "xhtml"
+    XLSB = "xlsb"
+    XML = "xml"
+    XSD = "xsd"
+    XSL = "xsl"
+    YAML = "yaml"
+    GSLLIDE = "gslide"
+    GSLIDES = "gslides"
+    KEY = "key"
+    ODP = "odp"
+    PPT = "ppt"
+    PPTX = "pptx"
+    BOXNOTE = "boxnote"
+
+
+class ImageFiles(Enum):
+    """ImageFiles(Enum).
+
+    An enum containing all of the supported extensions for files
+    Box considers images.
+    """
+
+    ARW = "arw"
+    BMP = "bmp"
+    CR2 = "cr2"
+    DCM = "dcm"
+    DICM = "dicm"
+    DICOM = "dicom"
+    DNG = "dng"
+    EPS = "eps"
+    EXR = "exr"
+    GIF = "gif"
+    HEIC = "heic"
+    INDD = "indd"
+    INDML = "indml"
+    INDT = "indt"
+    INX = "inx"
+    JPEG = "jpeg"
+    JPG = "jpg"
+    NEF = "nef"
+    PNG = "png"
+    SVG = "svg"
+    TIF = "tif"
+    TIFF = "tiff"
+    TGA = "tga"
+    SVS = "svs"
 
 
 @dataclass
@@ -336,7 +463,7 @@ def box_locate_folder_by_name(
 
 def box_folder_list_content(
     client: BoxClient, folder_id: str, is_recursive: bool = False
-) -> List[Union[File, Folder]]:
+) -> List[Union[File, FolderMini]]:
     # fields = "id,name,type"
     result: List[Union[File, FolderMini]] = []
 
@@ -350,10 +477,66 @@ def box_folder_list_content(
     return result
 
 
-def box_file_download(client: BoxClient, file_id: str) -> ByteStream:
-    # file = client.files.get_file_by_id(file_id)
-
-    return client.downloads.download_file(file_id=file_id)
+def box_file_download(
+    client: BoxClient, 
+    file_id: Any, 
+    save_file: bool = False, 
+    save_path: Optional[str] = None
+) -> Tuple[Optional[str], Optional[bytes], Optional[str]]:
+    """
+    Downloads a file from Box and optionally saves it locally.
+    
+    Args:
+        client (BoxClient): An authenticated Box client
+        file_id (Any): The ID of the file to download. Can be string or int.
+        save_file (bool, optional): Whether to save the file locally. Defaults to False.
+        save_path (str, optional): Path where to save the file. Defaults to None.
+        
+    Returns:
+        Tuple containing:
+            - path_saved (str or None): Path where file was saved if save_file=True
+            - file_content (bytes): Raw file content
+            - mime_type (str): Detected MIME type
+            
+    Raises:
+        BoxSDKError: If an error occurs during file download
+    """
+    # Ensure file_id is a string
+    file_id_str = str(file_id)
+    
+    # Get file info first to check file type
+    file_info = client.files.get_file_by_id(file_id_str)
+    file_name = file_info.name
+    
+    # Download the file
+    download_stream = client.downloads.download_file(file_id_str)
+    file_content = download_stream.read()
+    
+    # Get file extension and detect mime type
+    file_extension = file_name.split('.')[-1].lower() if '.' in file_name else ''
+    mime_type, _ = mimetypes.guess_type(file_name)
+    
+    # Save file locally if requested
+    saved_path = None
+    if save_file:
+        # Determine where to save the file
+        if save_path:
+            # Use provided path
+            full_save_path = save_path
+            if os.path.isdir(save_path):
+                # If it's a directory, append the filename
+                full_save_path = os.path.join(save_path, file_name)
+        else:
+            # Use temp directory with the original filename
+            temp_dir = tempfile.gettempdir()
+            full_save_path = os.path.join(temp_dir, file_name)
+        
+        # Save the file
+        with open(full_save_path, 'wb') as f:
+            f.write(file_content)
+        saved_path = full_save_path
+    
+    return saved_path, file_content, mime_type
 
 
 def box_available_ai_agents(client: BoxClient) -> List[AiSingleAgentResponseFull]:
@@ -388,3 +571,150 @@ def box_claude_ai_agent_extract() -> AiAgentExtract:
             model="aws__claude_3_7_sonnet",
         ),
     )
+
+
+# Folder Management Functions
+
+def box_create_folder(client: BoxClient, name: str, parent_id: Any = "0") -> FolderFull:
+    """
+    Creates a new folder in Box.
+    
+    Args:
+        client (BoxClient): An authenticated Box client
+        name (str): Name for the new folder
+        parent_id (Any, optional): ID of the parent folder. Can be string or int.
+                                  Defaults to "0" (root folder).
+        
+    Returns:
+        FolderFull: The created folder object
+        
+    Raises:
+        BoxSDKError: If an error occurs during folder creation
+    """
+    # Ensure parent_id is a string
+    parent_id_str = str(parent_id) if parent_id is not None else "0"
+    
+    return client.folders.create_folder(
+        name=name,
+        parent=CreateFolderParent(id=parent_id_str)
+    )
+
+
+def box_update_folder(
+    client: BoxClient, 
+    folder_id: Any, 
+    name: Optional[str] = None, 
+    description: Optional[str] = None,
+    parent_id: Optional[Any] = None
+) -> FolderFull:
+    """
+    Updates a folder's properties in Box.
+    
+    Args:
+        client (BoxClient): An authenticated Box client
+        folder_id (Any): ID of the folder to update. Can be string or int.
+        name (str, optional): New name for the folder
+        description (str, optional): New description for the folder
+        parent_id (Any, optional): ID of the new parent folder (for moving). Can be string or int.
+        
+    Returns:
+        FolderFull: The updated folder object
+        
+    Raises:
+        BoxSDKError: If an error occurs during folder update
+    """
+    # Ensure folder_id is a string
+    folder_id_str = str(folder_id)
+    
+    update_params = {}
+    if name:
+        update_params["name"] = name
+    if description:
+        update_params["description"] = description
+    if parent_id is not None:
+        # Ensure parent_id is a string
+        parent_id_str = str(parent_id)
+        update_params["parent"] = UpdateFolderByIdParent(id=parent_id_str)
+        
+    return client.folders.update_folder_by_id(
+        folder_id=folder_id_str,
+        **update_params
+    )
+
+
+def box_delete_folder(client: BoxClient, folder_id: Any, recursive: bool = False) -> None:
+    """
+    Deletes a folder from Box.
+    
+    Args:
+        client (BoxClient): An authenticated Box client
+        folder_id (Any): ID of the folder to delete. Can be string or int.
+        recursive (bool, optional): Whether to delete recursively. Defaults to False.
+        
+    Raises:
+        BoxSDKError: If an error occurs during folder deletion
+    """
+    # Ensure folder_id is a string
+    folder_id_str = str(folder_id)
+    
+    client.folders.delete_folder_by_id(
+        folder_id=folder_id_str,
+        recursive=recursive
+    )
+    return None
+
+
+# File Upload and Download Functions
+
+def box_upload_file(
+    client: BoxClient, 
+    content: str, 
+    file_name: str, 
+    folder_id: Optional[Any] = None
+) -> Dict[str, Any]:
+    """
+    Uploads content as a file to Box.
+    
+    Args:
+        client (BoxClient): An authenticated Box client
+        content (str): The content to upload as a file
+        file_name (str): The name to give the file in Box
+        folder_id (Any, optional): The ID of the folder to upload to. Can be string or int.
+                                  Defaults to "0" (root).
+        
+    Returns:
+        Dict containing information about the uploaded file including id and name
+        
+    Raises:
+        BoxSDKError: If an error occurs during file upload
+    """
+    # Create a temporary file
+    with tempfile.NamedTemporaryFile(mode='w', delete=False) as temp_file:
+        temp_file.write(content)
+        temp_file_path = temp_file.name
+
+    try:
+        # Upload the file
+        with open(temp_file_path, 'rb') as file:
+            # Use root folder if folder_id is not provided
+            parent_id = "0"
+            if folder_id is not None:
+                parent_id = str(folder_id)
+                
+            uploaded_file = client.uploads.upload_file(
+                UploadFileAttributes(
+                    name=file_name,
+                    parent=UploadFileAttributesParentField(id=parent_id)
+                ),
+                file
+            )
+            
+            # Return the first entry which contains file info
+            return {
+                "id": uploaded_file.entries[0].id,
+                "name": uploaded_file.entries[0].name,
+                "type": uploaded_file.entries[0].type
+            }
+    finally:
+        # Clean up the temporary file
+        os.unlink(temp_file_path)
