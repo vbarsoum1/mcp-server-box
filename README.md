@@ -202,8 +202,42 @@ code ~/Library/Application\ Support/Claude/claude_desktop_config.json
 }
 ```
 
-3. If CLaude is running restart it
+> [!NOTE] 
+> If using MacOS, you will want to install uv with brew:
+> `brew install uv`
+> or provide the full path to the uv executable:
+> `/Users/shurrey/.local/bin/uv  --directory /Users/shurrey/local/mcp-server-box run src/mcp_server_box.py`
+
+3. If Claude is running restart it
+
+### Using Cursor as the client
+
+1. Open your IDE with Cursor
+
+2. In settings, select `Cursor settings`.
+
+3. In the left nav, select `MCP`.
+
+4. In the top-left, select `Add new global MCP server`.
+
+5. Past the following json, being sure to update for your local values:
+```json
+{
+  "mcpServers": {
+    "box": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/Users/shurrey/local/mcp-server-box",
+        "run",
+        "src/mcp_server_box.py"
+      ]
+    }
+  }
+}
 ```
+
+6. Save and close the mcp.json file, and ensure the MCP server is enabled. You may have to restart.
 
 ## Running Tests
 
@@ -258,3 +292,12 @@ When creating new tests:
 4. Add proper assertions to verify functionality
 
 ## Troubleshooting
+
+If you are on MacOS and running the MCP server with Claude Desktop and you see the following error:
+
+`Error: spawn uv ENOENT`
+
+you can either remove uv and re-install with brew:
+`brew install uv`
+or provide the full path to the uv executable:
+`/Users/shurrey/.local/bin/uv  --directory /Users/shurrey/local/mcp-server-box run src/mcp_server_box.py`
