@@ -1,9 +1,9 @@
 # from dataclasses import dataclass
 import base64
 import json
+import logging
 
 # from mcp.server import Server
-import logging
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any, AsyncIterator, List, Union, cast  # , Optional, cast
@@ -36,9 +36,14 @@ from box_ai_agents_toolkit import (
 
 from mcp.server.fastmcp import Context, FastMCP
 
+# # Disable all logging
+logging.basicConfig(level=logging.CRITICAL)
+for logger_name in logging.root.manager.loggerDict:
+    logging.getLogger(logger_name).setLevel(logging.CRITICAL)
 
+# Override the logging call that's visible in the original code
 logger = logging.getLogger(__name__)
-logger.info("Box MCP Server started")
+logger.setLevel(logging.CRITICAL)
 
 
 @dataclass
@@ -52,8 +57,9 @@ async def box_lifespan(server: FastMCP) -> AsyncIterator[BoxContext]:
     try:
         client = get_oauth_client()
         yield BoxContext(client=client)
-    except Exception as e:
-        logger.error(f"Error: {e}")
+    # except Exception as e:
+    #     pass
+    #     # logger.error(f"Error: {e}")
     finally:
         # Cleanup (if needed)
         pass
