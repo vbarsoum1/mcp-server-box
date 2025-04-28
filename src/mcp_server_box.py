@@ -100,7 +100,7 @@ async def box_authorize_app_tool() -> str:
         str: Message
     """
 
-    logger.info("Authorizing Box application")
+    # logger.info("Authorizing Box application")
     result = authorize_app()
     if result:
         return "Box application authorized successfully"
@@ -169,7 +169,7 @@ async def box_read_tool(ctx: Context, file_id: Any) -> str:
         str: The text content of the file.
     """
     # log parameters and its type
-    logging.info(f"file_id: {file_id}, type: {type(file_id)}")
+    # logging.info(f"file_id: {file_id}, type: {type(file_id)}")
 
     # check if file id isn't a string and convert to a string
     if not isinstance(file_id, str):
@@ -197,7 +197,7 @@ async def box_ask_ai_tool(ctx: Context, file_id: Any, prompt: str) -> str:
         str: The text content of the file.
     """
     # log parameters and its type
-    logging.info(f"file_id: {file_id}, type: {type(file_id)}")
+    # logging.info(f"file_id: {file_id}, type: {type(file_id)}")
 
     # check if file id isn't a string and convert to a string
     if not isinstance(file_id, str):
@@ -207,8 +207,8 @@ async def box_ask_ai_tool(ctx: Context, file_id: Any, prompt: str) -> str:
     box_client: BoxClient = cast(
         BoxContext, ctx.request_context.lifespan_context
     ).client
-    ai_agent = box_claude_ai_agent_ask()
-    response = box_file_ai_ask(box_client, file_id, prompt=prompt, ai_agent=ai_agent)
+    # ai_agent = box_claude_ai_agent_ask()
+    response = box_file_ai_ask(box_client, file_id, prompt=prompt)
 
     return response
 
@@ -240,10 +240,8 @@ async def box_ask_ai_tool_multi_file(
     box_client: BoxClient = cast(
         BoxContext, ctx.request_context.lifespan_context
     ).client
-    ai_agent = box_claude_ai_agent_ask()
-    response = box_multi_file_ai_ask(
-        box_client, file_ids, prompt=prompt, ai_agent=ai_agent
-    )
+    # ai_agent = box_claude_ai_agent_ask()
+    response = box_multi_file_ai_ask(box_client, file_ids, prompt=prompt)
 
     return response
 
@@ -292,8 +290,8 @@ async def box_ai_extract_data(ctx: Context, file_id: Any, fields: str) -> str:
     if not isinstance(file_id, str):
         file_id = str(file_id)
 
-    ai_agent = box_claude_ai_agent_extract()
-    response = box_file_ai_extract(box_client, file_id, fields, ai_agent=ai_agent)
+    # ai_agent = box_claude_ai_agent_extract()
+    response = box_file_ai_extract(box_client, file_id, fields)
 
     return json.dumps(response)
 
