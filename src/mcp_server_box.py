@@ -251,7 +251,8 @@ async def box_ask_ai_tool_multi_file(
 @mcp.tool()
 async def box_hubs_ask_ai_tool(ctx: Context, hubs_id: Any, prompt: str) -> str:
     """
-    Ask box ai about a hub in Box.
+    Ask box ai about a hub in Box. Currently there is no way to discover a hub 
+    in Box, so you need to know the id of the hub. We will fix this in the future.
 
     Args:
         hubs_id (str): The ID of the hub to read.
