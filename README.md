@@ -48,6 +48,15 @@ Ask Box AI about a file.
 
 **Returns:** AI response
 
+### `box_hubs_ask_ai_tool`
+Ask Box AI about a hub. There is currently no way via API to discover a hub ID, so you must know the ID to use this tool. We will fix this in the future.
+
+**Parameters:**
+- `hubs_id` (str): ID of the hub
+- `prompt` (str): Question for the AI
+
+**Returns:** AI response
+
 ### `box_search_folder_by_name`
 Locate a folder by name.
 
