@@ -1,12 +1,12 @@
-# from dataclasses import dataclass
 import base64
 import json
-import logging
+import os
 
 # from mcp.server import Server
+import logging
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import Any, AsyncIterator, List, Union, cast  # , Optional, cast
+from typing import Any, AsyncIterator, List, cast, Union
 
 
 from box_ai_agents_toolkit import (
@@ -32,6 +32,17 @@ from box_ai_agents_toolkit import (
     box_upload_file,
     authorize_app,
     get_oauth_client,
+    box_docgen_create_batch,
+    box_docgen_get_job_by_id,
+    box_docgen_list_jobs,
+    box_docgen_list_jobs_by_batch,
+    box_docgen_template_create,
+    box_docgen_template_list,
+    box_docgen_template_delete,
+    box_docgen_template_get_by_id,
+    box_docgen_template_list_tags,
+    box_docgen_template_list_jobs,
+    box_docgen_create_batch_from_user_input
 )
 
 from mcp.server.fastmcp import Context, FastMCP
@@ -58,8 +69,7 @@ async def box_lifespan(server: FastMCP) -> AsyncIterator[BoxContext]:
         client = get_oauth_client()
         yield BoxContext(client=client)
     # except Exception as e:
-    #     pass
-    #     # logger.error(f"Error: {e}")
+    #     logger.error(f"Error: {e}")
     finally:
         # Cleanup (if needed)
         pass
@@ -100,7 +110,7 @@ async def box_authorize_app_tool() -> str:
         str: Message
     """
 
-    # logger.info("Authorizing Box application")
+    #logger.info("Authorizing Box application")
     result = authorize_app()
     if result:
         return "Box application authorized successfully"
@@ -159,7 +169,7 @@ async def box_search_tool(
 
 
 @mcp.tool()
-async def box_read_tool(ctx: Context, file_id: Any) -> str:
+async def box_read_tool(ctx: Context, file_id: str) -> str:
     """
     Read the text content of a file in Box.
 
@@ -170,7 +180,7 @@ async def box_read_tool(ctx: Context, file_id: Any) -> str:
     """
     # log parameters and its type
     # logging.info(f"file_id: {file_id}, type: {type(file_id)}")
-
+    
     # check if file id isn't a string and convert to a string
     if not isinstance(file_id, str):
         file_id = str(file_id)
@@ -186,7 +196,7 @@ async def box_read_tool(ctx: Context, file_id: Any) -> str:
 
 
 @mcp.tool()
-async def box_ask_ai_tool(ctx: Context, file_id: Any, prompt: str) -> str:
+async def box_ask_ai_tool(ctx: Context, file_id: str, prompt: str) -> str:
     """
     Ask box ai about a file in Box.
 
@@ -207,7 +217,7 @@ async def box_ask_ai_tool(ctx: Context, file_id: Any, prompt: str) -> str:
     box_client: BoxClient = cast(
         BoxContext, ctx.request_context.lifespan_context
     ).client
-    # ai_agent = box_claude_ai_agent_ask()
+    #ai_agent = box_claude_ai_agent_ask()
     response = box_file_ai_ask(box_client, file_id, prompt=prompt)
 
     return response
@@ -241,7 +251,9 @@ async def box_ask_ai_tool_multi_file(
         BoxContext, ctx.request_context.lifespan_context
     ).client
     # ai_agent = box_claude_ai_agent_ask()
-    response = box_multi_file_ai_ask(box_client, file_ids, prompt=prompt)
+    response = box_multi_file_ai_ask(
+        box_client, file_ids, prompt=prompt
+    )
 
     return response
 
@@ -271,7 +283,7 @@ async def box_search_folder_by_name(ctx: Context, folder_name: str) -> str:
 
 
 @mcp.tool()
-async def box_ai_extract_data(ctx: Context, file_id: Any, fields: str) -> str:
+async def box_ai_extract_data(ctx: Context, file_id: str, fields: str) -> str:
     """ "
     Extract data from a single file in Box using AI.
 
@@ -298,7 +310,9 @@ async def box_ai_extract_data(ctx: Context, file_id: Any, fields: str) -> str:
 
 @mcp.tool()
 async def box_list_folder_content_by_folder_id(
-    ctx: Context, folder_id: Any, is_recursive
+    ctx: Context,
+    folder_id: str,
+    is_recursive: bool = False,
 ) -> str:
     """
     List the content of a folder in Box by its ID.
@@ -340,21 +354,21 @@ async def box_list_folder_content_by_folder_id(
 @mcp.tool()
 async def box_manage_folder_tool(
     ctx: Context,
-    action: str,  # "create", "delete", or "update"
-    folder_id: Any = None,  # Required for delete and update, not for create
-    name: str = None,  # Required for create, optional for update
-    parent_id: Any = None,  # Required for create, optional for update
-    description: str = None,  # Optional for update
-    recursive: bool = False,  # Optional for delete
+    action: str,
+    folder_id: str = "",       # Required for delete and update; empty means not provided
+    name: str = "",            # Required for create; empty means not provided
+    parent_id: str = "",       # Optional for create; empty means root
+    description: str = "",     # Optional for update
+    recursive: bool = False,     # Optional for delete
 ) -> str:
     """
     Manage Box folders - create, delete, or update.
 
     Args:
         action (str): The action to perform: "create", "delete", or "update"
-        folder_id (Any): The ID of the folder (required for delete and update)
-        name (str): The name for the folder (required for create, optional for update)
-        parent_id (Any): The ID of the parent folder (required for create, optional for update)
+        folder_id (str | None): The ID of the folder (required for delete and update)
+        name (str | None): The name for the folder (required for create, optional for update)
+        parent_id (str | None): The ID of the parent folder (required for create, optional for update)
                        Root folder is "0" or 0.
         description (str): Description for the folder (optional for update)
         recursive (bool): Whether to delete recursively (optional for delete)
@@ -386,8 +400,8 @@ async def box_manage_folder_tool(
             return "Error: name is required for create action"
 
         try:
-            # Default to root folder ("0") if parent_id is None
-            parent_id_str = parent_id if parent_id is not None else "0"
+            # Default to root folder ("0") if no parent_id provided
+            parent_id_str = parent_id or "0"
 
             new_folder = box_create_folder(
                 client=box_client, name=name, parent_id=parent_id_str
@@ -428,37 +442,83 @@ async def box_manage_folder_tool(
 
 
 @mcp.tool()
-async def box_upload_file_tool(
-    ctx: Context, content: str, file_name: str, folder_id: Any | None = None
+async def box_upload_file_from_path_tool(
+    ctx: Context,
+    file_path: str,
+    folder_id: str = "0",
+    new_file_name: str = "",
 ) -> str:
     """
-    Upload content as a file to Box.
+    Upload a file to Box from a filesystem path.
 
     Args:
-        content (str): The content to upload as a file.
-        file_name (str): The name to give the file in Box.
-        folder_id (Any, optional): The ID of the folder to upload to. If not provided, uploads to root.
+        file_path (str): Path on the *server* filesystem to the file to upload.
+        folder_id (str): The ID of the destination folder. Defaults to root ("0").
+        new_file_name (str): Optional new name to give the file in Box. If empty, uses the original filename.
 
     return:
-        str: The uploaded file's information including ID and name.
+        str: Information about the uploaded file (ID and name).
     """
+
     # Get the Box client
     box_client: BoxClient = cast(
         BoxContext, ctx.request_context.lifespan_context
     ).client
 
     try:
-        # Convert folder_id to string if it's not None
-        folder_id_str = str(folder_id) if folder_id is not None else None
+        # Normalize the path and check if file exists
+        file_path_expanded = os.path.expanduser(file_path)
+        if not os.path.isfile(file_path_expanded):
+            return f"Error: file '{file_path}' not found."
 
-        # Use the box_api function for uploading
-        result = box_upload_file(
-            client=box_client,
-            content=content,
-            file_name=file_name,
-            folder_id=folder_id_str,
-        )
+        # Determine the file name to use
+        actual_file_name = new_file_name.strip() or os.path.basename(file_path_expanded)
+        # Determine file extension to detect binary types
+        _, ext = os.path.splitext(actual_file_name)
+        binary_exts = {".docx", ".pptx", ".xlsx", ".pdf", ".jpg", ".jpeg", ".png", ".gif"}
+        # Read file content as bytes for binary types, else as text
+        if ext.lower() in binary_exts:
+            # Binary file: read raw bytes
+            with open(file_path_expanded, "rb") as f:
+                content = f.read()
+        else:
+            # Text file: read as UTF-8
+            with open(file_path_expanded, "r", encoding="utf-8") as f:
+                content = f.read()
+        # Upload using toolkit (supports str or bytes)
+        result = box_upload_file(box_client, content, actual_file_name, folder_id)
+        return f"File uploaded successfully. File ID: {result['id']}, Name: {result['name']}"
+    except Exception as e:
+        return f"Error uploading file: {str(e)}"
 
+
+@mcp.tool()
+async def box_upload_file_from_content_tool(
+    ctx: Context,
+    content: str | bytes,  # Accept both string and bytes
+    file_name: str,
+    folder_id: str = "0",
+    is_base64: bool = False,  # New parameter to indicate if content is base64 encoded
+) -> str:
+    """
+    Upload content as a file to Box using the toolkit.
+
+    Args:
+        content (str | bytes): The content to upload. Can be text or binary data.
+        file_name (str): The name to give the file in Box.
+        folder_id (str): The ID of the destination folder. Defaults to root ("0").
+        is_base64 (bool): Whether the content is base64 encoded. Defaults to False.
+    """
+    # Get the Box client
+    box_client: BoxClient = cast(BoxContext, ctx.request_context.lifespan_context).client
+
+    try:
+        # Handle base64 encoded content
+        if is_base64 and isinstance(content, str):
+            content = base64.b64decode(content)
+        
+        # Upload using toolkit
+        result = box_upload_file(box_client, content, file_name, folder_id)
         return f"File uploaded successfully. File ID: {result['id']}, Name: {result['name']}"
     except Exception as e:
         return f"Error uploading file: {str(e)}"
@@ -466,7 +526,7 @@ async def box_upload_file_tool(
 
 @mcp.tool()
 async def box_download_file_tool(
-    ctx: Context, file_id: Any, save_file: bool = False, save_path: str | None = None
+    ctx: Context, file_id: str, save_file: bool = False, save_path: str | None = None
 ) -> str:
     """
     Download a file from Box and return its content as a string.
@@ -475,7 +535,7 @@ async def box_download_file_tool(
     Optionally saves the file locally.
 
     Args:
-        file_id (Any): The ID of the file to download.
+        file_id (str): The ID of the file to download.
         save_file (bool, optional): Whether to save the file locally. Defaults to False.
         save_path (str, optional): Path where to save the file. If not provided but save_file is True,
                                   uses a temporary directory. Defaults to None.
@@ -552,7 +612,252 @@ async def box_download_file_tool(
 
     except Exception as e:
         return f"Error downloading file: {str(e)}"
+    
+@mcp.tool()
+async def box_docgen_create_batch_tool(
+    ctx: Context,
+    file_id: str,
+    destination_folder_id: str,
+    user_input_file_path: str,
+    output_type: str = "pdf",
+) -> str:
+    """
+    Generate documents from a Box Doc Gen template using a local JSON file.
 
+    Args:
+        file_id (str): ID of the template file in Box.
+        destination_folder_id (str): Where to save the generated documents.
+        user_input_file_path (str): Path to a local JSON file containing
+            either a single dict or a list of dicts for document generation.
+        output_type (str): Output format (e.g. 'pdf'). Defaults to 'pdf'.
+
+    Returns:
+        str: JSON-serialized response from Box, or an error message.
+    """
+    box_client: BoxClient = cast(BoxContext, ctx.request_context.lifespan_context).client
+    try:
+        path = os.path.expanduser(user_input_file_path)
+        if not os.path.isfile(path):
+            return f"Error: user_input_file_path '{user_input_file_path}' not found"
+        with open(path, 'r', encoding='utf-8') as f:
+            raw_input = json.load(f)
+
+        # If no explicit generated_file_name, use any override provided in JSON
+        if 'file_name' in raw_input and isinstance(raw_input, dict):
+            generated_file_name = raw_input.pop('file_name')
+        else:
+            generated_file_name = "Test_Name"
+
+
+        batch = box_docgen_create_batch_from_user_input(
+            client=box_client,
+            file_id=file_id,
+            destination_folder_id=destination_folder_id,
+            user_input=raw_input,
+            generated_file_name=generated_file_name,
+            output_type=output_type,
+        )
+        # Return the serialized batch result as pretty JSON
+        return json.dumps(_serialize(batch), indent=2)
+    except Exception as e:
+        return f"Error generating document batch: {str(e)}"
+
+@mcp.tool()
+async def box_docgen_get_job_tool(ctx: Context, job_id: str) -> str:
+    """
+    Fetch a single DocGen job by its ID.
+    """
+    box_client: BoxClient = cast(BoxContext, ctx.request_context.lifespan_context).client
+    response = box_docgen_get_job_by_id(box_client, job_id)
+    # Serialize SDK object to JSON-safe structures
+    return json.dumps(_serialize(response), indent=2)
+
+@mcp.tool()
+async def box_docgen_list_jobs_tool(
+    ctx: Context,
+    marker: str | None = None,
+    limit: int | None = None,
+) -> str:
+    """
+    List all DocGen jobs for the current user (paginated).
+    """
+    box_client: BoxClient = cast(BoxContext, ctx.request_context.lifespan_context).client
+    response = box_docgen_list_jobs(box_client, marker=marker, limit=limit)
+    # Serialize SDK object to JSON-safe structures
+    return json.dumps(_serialize(response), indent=2)
+
+@mcp.tool()
+async def box_docgen_list_jobs_by_batch_tool(
+    ctx: Context,
+    batch_id: str,
+    marker: str | None = None,
+    limit: int | None = None,
+) -> str:
+    """
+    List all DocGen jobs that belong to a particular batch.
+    """
+    box_client: BoxClient = cast(BoxContext, ctx.request_context.lifespan_context).client
+    try:
+        response = box_docgen_list_jobs_by_batch(
+            box_client, batch_id=batch_id, marker=marker, limit=limit
+        )
+        
+        # Log the response type and structure for debugging
+        logger.info(f"Response type: {type(response)}")
+        logger.info(f"Response dir: {dir(response)}")
+        
+        # Create a simple dictionary with basic information
+        result = {
+            "batch_id": batch_id,
+            "response_type": str(type(response)),
+            "available_attributes": dir(response)
+        }
+        
+        # Try to access some common attributes safely
+        if hasattr(response, "total_count"):
+            result["total_count"] = response.total_count
+        
+        if hasattr(response, "entries"):
+            result["job_count"] = len(response.entries)
+            result["jobs"] = []
+            for job in response.entries:
+                try:
+                    job_info = {
+                        "type": str(type(job)),
+                        "attributes": dir(job)
+                    }
+                    # Try to safely get some common job attributes
+                    for attr in ["id", "status", "created_at", "modified_at"]:
+                        if hasattr(job, attr):
+                            job_info[attr] = str(getattr(job, attr))
+                    result["jobs"].append(job_info)
+                except Exception as job_error:
+                    logger.error(f"Error processing job: {str(job_error)}")
+                    result["jobs"].append({"error": str(job_error)})
+        
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        logger.error(f"Error in box_docgen_list_jobs_by_batch_tool: {str(e)}")
+        # Return a formatted error JSON
+        return json.dumps({
+            "error": str(e),
+            "batch_id": batch_id,
+            "details": "Error occurred while processing the response"
+        }, indent=2)
+
+@mcp.tool()
+async def box_docgen_template_create_tool(ctx: Context, file_id: str) -> str:
+    """
+    Mark a file as a Box Doc Gen template.
+    """
+    box_client: BoxClient = cast(BoxContext, ctx.request_context.lifespan_context).client
+    response = box_docgen_template_create(box_client, file_id)
+    # The SDK returns a DocGenTemplateBase object which isn't directly JSON‑serialisable.
+    # Use the common _serialize helper (defined later in this module) to convert it
+    # into plain dict/list primitives before dumping to JSON.
+    return json.dumps(_serialize(response))
+
+
+@mcp.tool()
+async def box_docgen_template_list_tool(
+    ctx: Context,
+    marker: str | None = None,
+    limit: int | None = None,
+) -> str:
+    """
+    List all Box Doc Gen templates accessible to the user.
+    """
+    box_client: BoxClient = cast(BoxContext, ctx.request_context.lifespan_context).client
+    templates = box_docgen_template_list(box_client, marker=marker, limit=limit)
+
+    return json.dumps(_serialize(templates))
+
+
+@mcp.tool()
+async def box_docgen_template_delete_tool(ctx: Context, template_id: str) -> str:
+    """
+    Unmark a file as a Box Doc Gen template.
+    """
+    box_client: BoxClient = cast(BoxContext, ctx.request_context.lifespan_context).client
+    box_docgen_template_delete(box_client, template_id)
+    return json.dumps({"deleted_template": template_id})
+
+
+@mcp.tool()
+async def box_docgen_template_get_by_id_tool(ctx: Context, template_id: str) -> str:
+    """
+    Retrieve details of a specific Box Doc Gen template.
+    """
+    box_client: BoxClient = cast(BoxContext, ctx.request_context.lifespan_context).client
+    template = box_docgen_template_get_by_id(box_client, template_id)
+    return json.dumps(_serialize(template))
+
+
+@mcp.tool()
+async def box_docgen_template_list_tags_tool(
+    ctx: Context,
+    template_id: str,
+    template_version_id: str | None = None,
+    marker: str | None = None,
+    limit: int | None = None,
+) -> str:
+    """
+    List all tags on a Box Doc Gen template.
+    """
+    box_client: BoxClient = cast(BoxContext, ctx.request_context.lifespan_context).client
+    tags = box_docgen_template_list_tags(
+        box_client,
+        template_id,
+        template_version_id=template_version_id,
+        marker=marker,
+        limit=limit,
+    )
+    return json.dumps(_serialize(tags))
+
+
+@mcp.tool()
+async def box_docgen_template_list_jobs_tool(
+    ctx: Context,
+    template_id: str,
+    marker: str | None = None,
+    limit: int | None = None,
+) -> str:
+    """
+    List all Doc Gen jobs that used a specific template.
+    """
+    box_client: BoxClient = cast(BoxContext, ctx.request_context.lifespan_context).client
+    jobs = box_docgen_template_list_jobs(
+        box_client, template_id=template_id, marker=marker, limit=limit
+    )
+    return json.dumps(_serialize(jobs))
+
+# Helper to make Box SDK objects JSON‑serialisable
+def _serialize(obj):
+    """Recursively convert Box SDK objects (which expose __dict__) into
+    plain dict / list structures so they can be json.dumps‑ed."""
+
+    if isinstance(obj, list):
+        return [_serialize(i) for i in obj]
+
+    # Primitive types are fine
+    if isinstance(obj, (str, int, float, bool)) or obj is None:
+        return obj
+
+    # Handle dictionary-like objects
+    if isinstance(obj, dict):
+        return {k: _serialize(v) for k, v in obj.items()}
+
+    # SDK models generally have __dict__ with public attributes
+    try:
+        if hasattr(obj, "__dict__"):
+            return {k: _serialize(v) for k, v in obj.__dict__.items() if not k.startswith("_")}
+        
+        # Try to get all public attributes if __dict__ is not available
+        return {k: _serialize(getattr(obj, k)) for k in dir(obj) 
+                if not k.startswith("_") and not callable(getattr(obj, k))}
+    except Exception:
+        # If all else fails, convert to string
+        return str(obj)
 
 if __name__ == "__main__":
     # Initialize and run the server
