@@ -21,6 +21,7 @@ from box_ai_agents_toolkit import (
     box_create_folder,
     box_delete_folder,
     box_file_ai_ask,
+    box_hubs_ai_ask,
     box_multi_file_ai_ask,
     box_file_ai_extract,
     box_file_download,
@@ -244,6 +245,33 @@ async def box_ask_ai_tool_multi_file(
     response = box_multi_file_ai_ask(
         box_client, file_ids, prompt=prompt, ai_agent=ai_agent
     )
+
+    return response
+
+@mcp.tool()
+async def box_hubs_ask_ai_tool(ctx: Context, hubs_id: Any, prompt: str) -> str:
+    """
+    Ask box ai about a hub in Box.
+
+    Args:
+        hubs_id (str): The ID of the hub to read.
+        prompt (str): The prompt to ask the AI.
+    return:
+        str: The text content of the file.
+    """
+    # log parameters and its type
+    logging.info(f"file_id: {hubs_id}, type: {type(hubs_id)}")
+
+    # check if file id isn't a string and convert to a string
+    if not isinstance(hubs_id, str):
+        hubs_id = str(hubs_id)
+
+    # Get the Box client
+    box_client: BoxClient = cast(
+        BoxContext, ctx.request_context.lifespan_context
+    ).client
+    ai_agent = box_claude_ai_agent_ask()
+    response = box_hubs_ai_ask(box_client, hubs_id, prompt=prompt, ai_agent=ai_agent)
 
     return response
 
