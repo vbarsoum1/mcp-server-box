@@ -29,6 +29,71 @@ Search for files in Box.
 
 #### `box_read_tool`
 Read the text content of a Box file.
+
+**Parameters:**
+- `file_id` (str): ID of the file to read
+
+**Returns:** File content
+
+### `box_ask_ai_tool`
+Ask Box AI about a file.
+
+**Parameters:**
+- `file_id` (str): ID of the file
+- `prompt` (str): Question for the AI
+
+**Returns:** AI response
+
+### `box_hubs_ask_ai_tool`
+Ask Box AI about a hub. There is currently no way via API to discover a hub ID, so you must know the ID to use this tool. We will fix this in the future.
+
+**Parameters:**
+- `hubs_id` (str): ID of the hub
+- `prompt` (str): Question for the AI
+
+**Returns:** AI response
+
+### `box_search_folder_by_name`
+Locate a folder by name.
+
+**Parameters:**
+- `folder_name` (str): Name of the folder
+
+**Returns:** Folder ID
+
+### `box_ai_extract_data`
+Extract data from a file using AI.
+
+**Parameters:**
+- `file_id` (str): ID of the file
+- `fields` (str): Fields to extract
+
+**Returns:** Extracted data in JSON format
+
+### `box_list_folder_content_by_folder_id`
+List folder contents.
+
+**Parameters:**
+- `folder_id` (str): ID of the folder
+- `is_recursive` (bool): Whether to list recursively
+
+**Returns:** Folder content in JSON format with id, name, type, and description
+
+### `box_manage_folder_tool`
+Create, update, or delete folders in Box.
+
+**Parameters:**
+- `action` (str): Action to perform: "create", "delete", or "update"
+- `folder_id` (str, optional): ID of the folder (required for delete/update)
+- `name` (str, optional): Folder name (required for create, optional for update)
+- `parent_id` (str, optional): Parent folder ID (required for create, optional for update)
+- `description` (str, optional): Folder description (optional for update)
+- `recursive` (bool, optional): Whether to delete recursively (optional for delete)
+
+**Returns:** Status message with folder details
+
+### `box_upload_file_tool`
+=======
 - **Parameters:**
   - `file_id` (str): The ID of the file to be read.
 - **Returns:** Text content of the file.
