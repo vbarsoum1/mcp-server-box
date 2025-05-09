@@ -21,7 +21,13 @@ WORKDIR /app
 COPY . /app
 
 # 5. Lock + install deps the way the README expects
-RUN uv pip install -r requirements.txt
+# NEW – prefer the lock file, fall back to “install this project”
+RUN if [ -f uv.lock ]; then \
+        uv pip install -r uv.lock; \
+    else \
+        uv pip install .; \
+    fi
+
 
 # 6. Expose the HTTP / SSE port we will proxy to
 EXPOSE 8000
