@@ -26,8 +26,9 @@ WORKDIR /app
 COPY pyproject.toml uv.lock* /app/
 
 # -- Install deps exactly as locked, fall back to resolving from project ------
+# Corrected command: use 'uv sync' for uv.lock files
 RUN if [ -f uv.lock ]; then \
-        uv pip sync uv.lock; \
+        uv sync uv.lock; \
     else \
         uv pip install .; \
     fi
