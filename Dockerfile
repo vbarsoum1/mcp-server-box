@@ -26,6 +26,7 @@ WORKDIR /app
 COPY pyproject.toml uv.lock* /app/
 
 # -- Install deps exactly as locked, fall back to resolving from project ------
+# Use 'uv sync' without explicit lockfile argument; it finds uv.lock in CWD
 RUN if [ -f uv.lock ]; then \
         uv sync; \
     else \
@@ -39,5 +40,8 @@ COPY . /app
 # The MCP server itself speaks stdio; we expose it via SSE on :8000
 EXPOSE 8000
 
-# Corrected CMD arguments for mcp-proxy
-CMD ["mcp-proxy", "--sse-port", "8000", "--", "uv", "run", "src/mcp_server_box.py"]
+# Corrected CMD arguments for mcp-proxy:
+#   --sse-host 0.0.0.0 to listen on all interfaces
+#   --sse-port (was --port)
+#   --stdio flag removed (unrecognized by this mcp-proxy version)
+CMD ["mcp-proxy", "--sse-host", "0.0.0.0", "--sse-port", "8000", "--", "uv", "run", "src/mcp_server_box.py"]
