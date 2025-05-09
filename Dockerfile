@@ -37,28 +37,12 @@ RUN if [ -f uv.lock ]; then \
 COPY . /app
 
 ############## 5️⃣  Runtime config #############################################
-# The MCP server talks on stdio; we publish it over HTTP (SSE) on :8000
+# The MCP server itself speaks stdio; we expose it via SSE on :8000
 EXPOSE 8000
 
-# mcp-proxy flags that work today:
-#   --host         listen interface   (default 0.0.0.0, but we make it explicit)
-#   --port         listen port
-#   --stdio        wrap the child process’ stdio
-#   --path         optional; lets you change / to /sse, /events, etc.
-#   --no-sse       disables streaming and turns the proxy into plain JSON RPC
-#
-# There are *no* --sse-host / --sse-port flags in current releases.
-# Keep --stdio unless you want the proxy to exec a TCP backend instead.
-
-CMD ["mcp-proxy",
-     "--host",  "0.0.0.0",
-     "--port",  "8000",
-     "--stdio",
-     # Optional: uncomment the next line if you want to change the path
-     # "--path",  "/sse",
-     #
-     # Optional: uncomment the next line if you prefer non-streaming POST/JSON
-     # "--no-sse",
-     "--",
-     "uv", "run", "src/mcp_server_box.py"]
+# Corrected CMD arguments for mcp-proxy:
+#   --sse-host 0.0.0.0 to listen on all interfaces
+#   --sse-port (was --port)
+#   --stdio flag removed (unrecognized by this mcp-proxy version)
+CMD ["mcp-proxy", "--sse-host", "0.0.0.0", "--sse-port", "8000", "--", "uv", "run", "src/mcp_server_box.py"]
 
