@@ -1,37 +1,42 @@
 # ─────────────────────────────────────────────────────────────
-# Dockerfile for box-community/mcp-server-box on Coolify
+# Dockerfile – MCP Server for Box on Coolify
 # ─────────────────────────────────────────────────────────────
-# 1. Base image ─ Python 3.13 slim
+
+############## 1️⃣  Base image ##################################################
 FROM python:3.13-slim
 
-# 2. Install system helpers that uv or cryptography may need
+############## 2️⃣  OS packages #################################################
+# ‘uv’ sometimes needs headers; cryptography needs build tools
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        gcc curl build-essential git && \
+        gcc build-essential git curl && \
     rm -rf /var/lib/apt/lists/*
 
-# 3. Install uv + mcp-proxy
-#    (uv is published on PyPI, so a single pip line is enough)
+############## 3️⃣  Python tooling #############################################
+#  - uv: fast installer / virtual-env replacement
+#  - mcp-proxy: converts stdio MCP server → SSE endpoint
 RUN pip install --no-cache-dir \
       uv==0.7.* \
       mcp-proxy==0.3.*
 
-# 4. Create work dir and copy project
+############## 4️⃣  Project files & dependencies ###############################
 WORKDIR /app
-COPY . /app
 
-# 5. Lock + install deps the way the README expects
-# NEW – prefer the lock file, fall back to “install this project”
+# -- Copy only dependency manifests first so Docker layer caching works  --
+COPY pyproject.toml uv.lock* /app/
+
+# -- Install deps exactly as locked, fall back to resolving from project ------
 RUN if [ -f uv.lock ]; then \
-        uv pip install -r uv.lock; \
+        uv pip sync uv.lock; \
     else \
         uv pip install .; \
     fi
 
+# -- Now copy the rest of the source code -------------------------------------
+COPY . /app
 
-# 6. Expose the HTTP / SSE port we will proxy to
+############## 5️⃣  Runtime config #############################################
+# The MCP server itself speaks stdio; we expose it via SSE on :8000
 EXPOSE 8000
 
-# 7. Start the stdio MCP server and immediately
-#    proxy it to an SSE endpoint on :8000
 CMD ["mcp-proxy", "--port", "8000", "--stdio", "--", "uv", "run", "src/mcp_server_box.py"]
